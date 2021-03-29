@@ -1,0 +1,232 @@
+---
+title: "Bank Marketing Campaign"
+author: "Fauzan Alamsyah"
+date: "2/13/2021"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    theme: flatly
+    higlight: zenburn
+    css: assets/style.css
+  fig_captions: yes
+---
+
+Before going through this project file, you may want to see the *Libraries and Setup* page to see what kind of setup and libraries I'm using. I also texted down my *objective* of this project. 
+
+
+# Background {.tabset .tabset-fade}
+## About Dataset
+
+The data is related with direct marketing campaigns of a Portuguese banking institution. The marketing campaigns were based on phone calls. The bank is trying to ask its client for a term deposit during this campaign.
+
+The data set itself contains its client record information, their balance, and their last phone call's campaign in the year of 2010. Though it's a record of client's data information in the past campaign, the proportion of the outcome isn't properly balance. That's why, at the end I can't really conclude the best explanation for insights.
+
+I got this data frome here, https://archive.ics.uci.edu/ml/datasets/bank+marketing
+
+## Libraries and Setup
+
+```{r setup}
+# chunk set up
+knitr::opts_chunk$set(cache=TRUE,
+                      fig.align = "center",
+                      comment = "#>"
+                      )
+
+# set up scientific notation
+options(scipen = 9999)
+
+# clear Global Environment
+rm(list=ls())
+```
+
+```{r, echo= TRUE}
+# Library I use
+library(dplyr)
+library(knitr)
+```
+
+## Objective
+
+This is a Learn By Building (LBB) project by me as a student at Algoritma Data Science Academy. I'm currently new to this job world, so you may find some of my deficiencies in analyzing this data.
+
+
+# Data Wrangling
+
+```{r}
+bank <- read.csv2("data_input/bank-full.csv")
+```
+
+## Data Inspection
+
+```{r}
+head(bank)
+```
+
+
+```{r}
+str(bank)
+```
+
+```{r}
+colSums(is.na(bank))
+```
+
+As it seems there are no missing values in the data frame, and that makes easier to analyze deeper. I likely should do some of data transformation so that the data is fully prepared.
+
+## Data Transformation
+
+Some type of variables don't match as they should be. Therefore, all of the _character_ types must be change to _factor_, because each of them have quite some categorical levels.
+```{r}
+bank <- bank %>% 
+  mutate_if(is.character, as.factor) %>% 
+  mutate(month = as.character(month))
+```
+
+The reason why I put back *month* variable to what it was is because *day* variable written as integer which actually these integers represent date of month. By putting back *month* variable to _character_ type, I could transform the integer in *day* to name of weekdays.
+
+```{r}
+bank <- bank %>% 
+  mutate(year = 2010)
+
+bank <- bank %>% 
+  mutate(date = paste(year,month,day,sep = "-"))
+
+bank$date <- as.POSIXct(bank$date, format = "%Y-%b-%d")
+
+bank <- bank %>% 
+  mutate(day = weekdays(bank$date,abbreviate = TRUE)) %>% 
+  mutate(day = as.factor(day))
+```
+
+Since I don't really need *year* and *date* variable, I would remove these two.
+```{r}
+bank <- bank %>% 
+  mutate(month = as.factor(month)) %>% 
+  select(-c(year, date))
+```
+
+```{r}
+kable(bank[1:6,], caption = "Bank Markteing Campaign Data Set")
+```
+
+and yet I'm finished with transforming the data.
+
+# Exploratory Data Analysis
+
+First we look ahead for the summary of the data
+```{r}
+summary(bank)
+```
+
+```{r}
+prop.table(table(bank$y))
+```
+
+That being said, the proportion of the outcome if the data isn't heavily balanced, as it's 1:9. I'm going to try my best to come up for acceptable insights. For that, the exploration will just focus on the 'positive' outcome.
+
+```{r}
+bank_yes <- bank %>% 
+  filter(y == "yes")
+
+bank_no <- bank %>% 
+  filter(y == "no")
+```
+
+
+```{r}
+summary(bank_yes)
+```
+
+
+```{r}
+summary(bank_no)
+```
+
+
+Here comes some questions,
+
+**1. What kind of job does a person who agreed with the term deposit campaign have in the background? And what is their status marital?** 
+
+```{r}
+table(bank_yes$job, bank_yes$marital)
+```
+
+```{r}
+plot(xtabs(~ job + marital, data = bank_yes))
+```
+
+**2. Does educational background have any correlation to client's outcome?**
+
+If I look at both positive and negative outcome record, there is no correlation between these two. So, it appears educational background doesn't effect that much.
+```{r}
+#Positive outcome
+plot(bank_yes$education)
+```
+
+```{r}
+#Negative outcome
+plot(bank_no$education)
+```
+
+**3. How about default credit and loans?**
+
+For default credit,
+```{r}
+#Positive outcome
+table(bank_yes$default)
+```
+
+```{r}
+#Negative outcome
+table(bank_no$default)
+```
+
+For Housing loan,
+```{r}
+#Positive outcome
+table(bank_yes$housing)
+```
+
+```{r}
+#Negative outcome
+table(bank_no$housing)
+```
+
+For other loans,
+```{r}
+#Positive outcome
+table(bank_yes$loan)
+```
+
+```{r}
+#Negative outcome
+table(bank_no$loan)
+```
+
+**4. Client's balance?**
+
+```{r}
+#Positive outcome
+summary(bank_yes$balance)
+boxplot(bank_yes$balance)
+```
+
+```{r}
+#Negative outcome
+summary(bank_no$balance)
+```
+
+
+# Conclusion and Marketing Strategy Recomendation
+
+This campaign is held from May until November in 2010. Although it seems the outcome couldn't be expected that much, but I've got some points towards this marketing record. 
+
+  1. Even though between the positive and negative outcome the proportion within is likely the same, but clients with job as management has the opportunity to accept for this campaign higher that others followed by technician, blue-collar, retired, and admin (can be seen from the plot). Married Marital status also higher that being single or divorced. Besides, it's a good step to approach clients with jobs mentioned before or "well-named" jobs first to offer the bank's product in the next campaign.
+  
+  2. Clients with positive outcome have higher amount in balance, as its mean reach 1804 (perhaps in euros). While negative outcome client's balance only reach up to 1304 in mean. This concludes that clients with higher amount in balance has higher opportunity to invest in a term deposit, since there must be minimum amount in balance in order to do a term deposit.
+  
+  3. Educational background, loans, and credit default don't really have quite impact. Therefore, I think choosing the right time to make a call with client to offer is also a good step. As we can see on Wednesday, Thursday, and Friday have big number of success, while weekend or Monday don't. It isn't that the bank must only make a call during these three days but they could be more focused within these three.
